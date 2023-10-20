@@ -1,7 +1,6 @@
 import gspread
 import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram import executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from oauth2client.service_account import ServiceAccountCredentials
 
