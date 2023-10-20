@@ -1,5 +1,8 @@
 import gspread
-import telebot
+import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram import executor
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from oauth2client.service_account import ServiceAccountCredentials
 
 bot_token = '6710319437:AAG-zh8y6oc0gAKRxn4yWTm-rIwDSn0A0UM'
@@ -8,10 +11,21 @@ scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/au
 credentials = ServiceAccountCredentials.from_json_keyfile_name('testprj-402613-5daa36fbb50d.json', scope)
 client = gspread.authorize(credentials)
 sheet = client.open('Teststesttest').sheet1
-bot = telebot.TeleBot(bot_token)
+bot = Bot(token=bot_token)
+dp = Dispatcher(bot, storage=MemoryStorage())
 counter = 1
 last_row = len(sheet.col_values(6))
-bot.send_message(chat_id, 'Готово, епта')
+
+
+def run_in_executor(func):
+    """Run a blocking function in a separate thread."""
+
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        new_args = [arg for arg in args]
+        return loop.run_in_executor(None, func, *new_args, **kwargs)
+
+    return wrapper
 
 
 def value(row):
@@ -22,34 +36,14 @@ def value(row):
 
 
 def buttons():
-    markup = telebot.types.InlineKeyboardMarkup()
-    accept_button = telebot.types.InlineKeyboardButton(text='Принять', callback_data='accept')
-    reject_button = telebot.types.InlineKeyboardButton(text='Отклонить', callback_data='reject')
+    markup = types.InlineKeyboardMarkup()
+    accept_button = types.InlineKeyboardButton(text='Принять', callback_data='accept')
+    reject_button = types.InlineKeyboardButton(text='Отклонить', callback_data='reject')
     markup.row(accept_button, reject_button)
     return markup
 
 
-@bot.message_handler(func=lambda message: True)
-def handle_message(message):
-    if message.content_type == 'callback_query':
-        if message.data == 'accept':
-            sheet.update_cell(last_row + counter, 5, 'п')
-            bot.send_message(chat_id, 'Заказ успешно принят!')
-        elif message.data == 'reject':
-            bot.send_message(chat_id, 'Заказ отклонен.')
-
-
-@bot.callback_query_handler(func=lambda call: True)
-def handle_button_click(callback):
-    if callback.data == 'accept':
-        print('Нажали кнопку')
-        sheet.update_cell(last_row + counter, 5, 'п')  # обновляем значение в столбце E
-        bot.send_message(chat_id, 'Заказ успешно принят!')
-    elif callback.data == 'reject':
-        bot.send_message(chat_id, 'Заказ отклонен.')
-
-
-def check_all():
+async def check_all():
     global last_row
     global counter
     global chat_id
@@ -60,18 +54,46 @@ def check_all():
             value(13)) + '\n Имбирь: ' + str(value(14)) + '\n Васаби: ' + str(
             value(15)) + '\n Способ оплаты: ' + str(value(16)) + '\n Итоговая цена: ' + str(
             value(17))
-        bot.send_message(chat_id, message, reply_markup=buttons())
+        await bot.send_message(chat_id, message, reply_markup=buttons())
         counter += 1
         print("Алло уеба заказ пришел")
 
 
-def set_trigger():
-    import time
+async def inf_loop():
     while True:
-        check_all()
-        time.sleep(60)
+        await check_all()
+        await asyncio.sleep(15)
 
 
-set_trigger()
+@dp.callback_query_handler(lambda call: True)
+async def handle_button_click(callback_query: types.CallbackQuery):
+    if callback_query.data == 'accept':
+        print('Нажали кнопку')
+        sheet.update_cell(last_row + counter - 1, 5, 'п')  # обновляем значение в столбце E
+        await bot.send_message(chat_id, 'Заказ успешно принят!')
+    elif callback_query.data == 'reject':
+        # Delete the original message
+        message_to_delete = callback_query.message
+        await bot.delete_message(chat_id=message_to_delete.chat.id, message_id=message_to_delete.message_id)
+        # Send a new message
+        await bot.send_message(chat_id, 'Заказ отклонен.')
 
-bot.polling()
+
+@dp.message_handler(content_types=types.ContentTypes.TEXT)
+async def send_text(message: types.Message):
+    print("кто-то что-то написал")
+    if message.text == 'Принять':
+        sheet.update_cell(last_row + counter, 5, 'п')  # обновляем значение в столбце E
+        await bot.send_message(chat_id, 'Заказ успешно принят!')
+    elif message.text == 'Отклонить':
+        await bot.send_message(chat_id, 'Заказ отклонен.')
+
+
+async def main():
+    polling_task = asyncio.create_task(dp.start_polling())
+    loop_task = asyncio.create_task(inf_loop())
+    await asyncio.gather(polling_task, loop_task)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
