@@ -18,8 +18,6 @@ last_row = len(sheet.col_values(6))
 
 
 def run_in_executor(func):
-    """Run a blocking function in a separate thread."""
-
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
         new_args = [arg for arg in args]
@@ -69,13 +67,11 @@ async def inf_loop():
 async def handle_button_click(callback_query: types.CallbackQuery):
     if callback_query.data == 'accept':
         print('Нажали кнопку')
-        sheet.update_cell(last_row + counter - 1, 5, 'п')  # обновляем значение в столбце E
+        sheet.update_cell(last_row + counter - 1, 5, 'п')
         await bot.send_message(chat_id, 'Заказ успешно принят!')
     elif callback_query.data == 'reject':
-        # Delete the original message
         message_to_delete = callback_query.message
         await bot.delete_message(chat_id=message_to_delete.chat.id, message_id=message_to_delete.message_id)
-        # Send a new message
         await bot.send_message(chat_id, 'Заказ отклонен.')
 
 
@@ -83,7 +79,7 @@ async def handle_button_click(callback_query: types.CallbackQuery):
 async def send_text(message: types.Message):
     print("кто-то что-то написал")
     if message.text == 'Принять':
-        sheet.update_cell(last_row + counter, 5, 'п')  # обновляем значение в столбце E
+        sheet.update_cell(last_row + counter, 5, 'п')
         await bot.send_message(chat_id, 'Заказ успешно принят!')
     elif message.text == 'Отклонить':
         await bot.send_message(chat_id, 'Заказ отклонен.')
