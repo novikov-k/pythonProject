@@ -73,17 +73,6 @@ async def handle_button_click(callback_query: types.CallbackQuery):
         await bot.delete_message(chat_id=message_to_delete.chat.id, message_id=message_to_delete.message_id)
         await bot.send_message(chat_id, 'Заказ отклонен.')
 
-
-@dp.message_handler(content_types=types.ContentTypes.TEXT)
-async def send_text(message: types.Message):
-    print("кто-то что-то написал")
-    if message.text == 'Принять':
-        sheet.update_cell(last_row + counter, 5, 'п')
-        await bot.send_message(chat_id, 'Заказ успешно принят!')
-    elif message.text == 'Отклонить':
-        await bot.send_message(chat_id, 'Заказ отклонен.')
-
-
 async def main():
     polling_task = asyncio.create_task(dp.start_polling())
     loop_task = asyncio.create_task(inf_loop())
