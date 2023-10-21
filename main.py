@@ -45,12 +45,17 @@ async def check_all():
     global counter
     global chat_id
     if sheet.cell(last_row + counter, 6).value != sheet.cell(last_row + counter + 1, 6).value:
-        message = 'Новый заказ! \n Адрес: ' + str(value(6)) + '\n Номер: ' + str(
-            value(7)) + '\n Время заказа: ' + str(value(8)) + '\n Состав заказа: ' + str(
-            value(10)) + '\n Палочки: ' + str(value(12)) + '\n Соевый соус: ' + str(
+        composition = ""
+        count_comp = 0
+        while sheet.cell(last_row + counter, 18 + count_comp).value != sheet.cell(last_row + counter, 18 + count_comp + 1).value:
+            composition += str(value(18 + count_comp)) + ' '
+            count_comp += 1
+        message = ('Новый заказ! \n Адрес: ' + str(value(6)) + '\n Номер: ' + str(
+            value(7)) + '\n Время заказа: ' + str(value(8)) + '\n Состав заказа: ' + composition +
+            '\n Палочки: ' + str(value(12)) + '\n Соевый соус: ' + str(
             value(13)) + '\n Имбирь: ' + str(value(14)) + '\n Васаби: ' + str(
             value(15)) + '\n Способ оплаты: ' + str(value(16)) + '\n Итоговая цена: ' + str(
-            value(17))
+            value(17)))
         await bot.send_message(chat_id, message, reply_markup=buttons())
         counter += 1
         print("Алло уеба заказ пришел")
@@ -72,6 +77,7 @@ async def handle_button_click(callback_query: types.CallbackQuery):
         message_to_delete = callback_query.message
         await bot.delete_message(chat_id=message_to_delete.chat.id, message_id=message_to_delete.message_id)
         await bot.send_message(chat_id, 'Заказ отклонен.')
+
 
 async def main():
     polling_task = asyncio.create_task(dp.start_polling())
