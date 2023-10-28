@@ -4,6 +4,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from oauth2client.service_account import ServiceAccountCredentials
 import re
+import psycopg2
+from config import host, user, password, db_name
 
 bot_token = '6710319437:AAG-zh8y6oc0gAKRxn4yWTm-rIwDSn0A0UM'
 chat_id = '-4056194745'
@@ -18,9 +20,12 @@ orders = []
 orders_row = []
 last_row = len(sheet.col_values(6))
 
+connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+cursor = connection.cursor()
+
 
 def run_in_executor(func):
-    def wrapper(*args,):
+    def wrapper(*args, ):
         loop = asyncio.get_event_loop()
         new_args = [arg for arg in args]
         return loop.run_in_executor(None, func, *new_args)
@@ -31,8 +36,15 @@ def run_in_executor(func):
 def value(row):
     global last_row
     global counter
-    new_value = sheet.cell(last_row + counter, row).value
-    return new_value
+    new_value1 = sheet.cell(last_row + counter, row).value
+    return new_value1
+
+
+def new_value(row):
+    global last_row
+    global counter
+    new_value2 = sheet.cell(last_row + counter - 1, row).value
+    return new_value2
 
 
 def buttons():
@@ -45,10 +57,11 @@ def buttons():
 
 def buttons1(order_index):
     markup = types.InlineKeyboardMarkup()
-    preparing_button = types.InlineKeyboardButton(text='Статус: готовится', callback_data='preparing'+str(order_index))
+    preparing_button = types.InlineKeyboardButton(text='Статус: готовится',
+                                                  callback_data='preparing' + str(order_index))
     delivering_button = types.InlineKeyboardButton(text='Статус: едет к клиенту',
-                                                   callback_data='delivering'+str(order_index))
-    completed_button = types.InlineKeyboardButton(text='Статус: завершен', callback_data='completed'+str(order_index))
+                                                   callback_data='delivering' + str(order_index))
+    completed_button = types.InlineKeyboardButton(text='Статус: завершен', callback_data='completed' + str(order_index))
     markup.row(preparing_button, delivering_button, completed_button)
     return markup
 
@@ -59,6 +72,7 @@ async def check_all():
     global chat_id
     global orders
     global orders_row
+    global cursor
     if sheet.cell(last_row + counter, 6).value != sheet.cell(last_row + counter + 1, 6).value:
         composition = ""
         count_comp = 0
@@ -72,7 +86,7 @@ async def check_all():
                     value(13)) + '\nИмбирь: ' + str(value(14)) + '\nВасаби: ' + str(
                     value(15)) + '\nСпособ оплаты: ' + str(value(16)) + '\nИтоговая цена: ' + str(
                     value(17)))
-        orders_row.append(last_row+counter)
+        orders_row.append(last_row + counter)
         orders.append(message)
         await bot.send_message(chat_id, "Новый заказ! \n" + message, reply_markup=buttons())
         counter += 1
@@ -85,12 +99,42 @@ async def inf_loop():
         await asyncio.sleep(15)
 
 
+async def printer():
+    global last_row
+    global counter
+    global chat_id
+    global orders
+    global orders_row
+    composition = ""
+    food_comp = ""
+    count_comp = 0
+    while sheet.cell(last_row + counter - 1, 18 + count_comp).value != sheet.cell(last_row + counter - 1,
+                                                                                  18 + count_comp + 1).value:
+        composition += str(new_value(18 + count_comp)) + ' '
+        food_name = str(new_value(18 + count_comp))
+        query = f"SELECT food_comp FROM list WHERE food = '{food_name}'"
+        cursor.execute(query)
+        result = cursor.fetchone()
+        if result is not None:
+            food_comp += result[0] + "\n \n"
+        count_comp += 1
+    message = ('Адрес: ' + str(new_value(6)) + '\nНомер: ' + str(
+        new_value(7)) + '\nВремя заказа: ' + str(new_value(8)) + '\nСостав заказа: ' + composition +
+               '\nПалочки: ' + str(new_value(12)) + '\nCоевый соус: ' + str(
+                new_value(13)) + '\nИмбирь: ' + str(new_value(14)) + '\nВасаби: ' + str(
+                new_value(15)) + '\nСпособ оплаты: ' + str(new_value(16)) + '\nИтоговая цена: ' + str(
+                new_value(17)) + "\n")
+    message += food_comp
+    await bot.send_message(chat_id, message)
+
+
 @dp.callback_query_handler(lambda call: True)
 async def handle_button_click(callback_query: types.CallbackQuery):
     global orders
     global orders_row
     if callback_query.data == 'accept':
         print('Нажали кнопку')
+        await printer()
         sheet.update_cell(last_row + counter - 1, 5, 'п')
         message_to_delete = callback_query.message
         await bot.delete_message(chat_id=message_to_delete.chat.id, message_id=message_to_delete.message_id)
