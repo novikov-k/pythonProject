@@ -10,9 +10,9 @@ from config import host, user, password, db_name
 bot_token = '6710319437:AAG-zh8y6oc0gAKRxn4yWTm-rIwDSn0A0UM'
 chat_id = '-4056194745'
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-credentials = ServiceAccountCredentials.from_json_keyfile_name('testprj-402613-5daa36fbb50d.json', scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name('molten-acumen-402718-160511404f88.json', scope)
 client = gspread.authorize(credentials)
-sheet = client.open('Teststesttest').sheet1
+sheet = client.open('ФИЛИАЛЫ №2').worksheet('ТЕСТ')
 bot = Bot(token=bot_token)
 dp = Dispatcher(bot, storage=MemoryStorage())
 counter = 1
@@ -76,16 +76,17 @@ async def check_all():
     if sheet.cell(last_row + counter, 6).value != sheet.cell(last_row + counter + 1, 6).value:
         composition = ""
         count_comp = 0
-        while sheet.cell(last_row + counter, 18 + count_comp).value != sheet.cell(last_row + counter,
-                                                                                  18 + count_comp + 1).value:
-            composition += str(value(18 + count_comp)) + ' '
-            count_comp += 1
+        composition += str(value(20)) + " "
+        while sheet.cell(last_row + counter, 21 + count_comp).value != sheet.cell(last_row + counter,
+                                                                                  21 + count_comp + 2).value:
+            composition += str(value(21 + count_comp)) + ' '
+            count_comp += 2
         message = ('Адрес: ' + str(value(6)) + '\nНомер: ' + str(
-            value(7)) + '\nВремя заказа: ' + str(value(8)) + '\nСостав заказа: ' + composition +
-                   '\nПалочки: ' + str(value(12)) + '\nCоевый соус: ' + str(
-                    value(13)) + '\nИмбирь: ' + str(value(14)) + '\nВасаби: ' + str(
-                    value(15)) + '\nСпособ оплаты: ' + str(value(16)) + '\nИтоговая цена: ' + str(
-                    value(17)))
+            value(7)) + '\nВремя заказа: ' + str(value(9)) + '\nСостав заказа: ' + composition +
+                   '\nПалочки: ' + str(value(14)) + '\nCоевый соус: ' + str(
+                    value(15)) + '\nИмбирь: ' + str(value(16)) + '\nВасаби: ' + str(
+                    value(17)) + '\nСпособ оплаты: ' + str(value(18)) + '\nИтоговая цена: ' + str(
+                    value(19)))
         orders_row.append(last_row + counter)
         orders.append(message)
         await bot.send_message(chat_id, "Новый заказ! \n" + message, reply_markup=buttons())
@@ -108,22 +109,33 @@ async def printer():
     composition = ""
     food_comp = ""
     count_comp = 0
-    while sheet.cell(last_row + counter - 1, 18 + count_comp).value != sheet.cell(last_row + counter - 1,
-                                                                                  18 + count_comp + 1).value:
-        composition += str(new_value(18 + count_comp)) + ' '
-        food_name = str(new_value(18 + count_comp))
+    composition += str(new_value((20+count_comp))) + " "
+    food_name = str(new_value(20 + count_comp))
+    try:
         query = f"SELECT food_comp FROM list WHERE food = '{food_name}'"
         cursor.execute(query)
         result = cursor.fetchone()
-        if result is not None:
+        food_comp += result[0] + "\n \n"
+    except Exception as ex:
+        food_comp += "Ошибка в парсинге" + "\n"
+    while sheet.cell(last_row + counter - 1, 21 + count_comp).value != sheet.cell(last_row + counter - 1,
+                                                                                  21 + count_comp + 2).value:
+        composition += str(new_value(21 + count_comp)) + ' '
+        food_name = str(new_value(21 + count_comp))
+        try:
+            query = f"SELECT food_comp FROM list WHERE food = '{food_name}'"
+            cursor.execute(query)
+            result = cursor.fetchone()
             food_comp += result[0] + "\n \n"
-        count_comp += 1
+        except Exception as ex:
+            food_comp += "Ошибка в парсинге" + "\n"
+        count_comp += 2
     message = ('Адрес: ' + str(new_value(6)) + '\nНомер: ' + str(
-        new_value(7)) + '\nВремя заказа: ' + str(new_value(8)) + '\nСостав заказа: ' + composition +
-               '\nПалочки: ' + str(new_value(12)) + '\nCоевый соус: ' + str(
-                new_value(13)) + '\nИмбирь: ' + str(new_value(14)) + '\nВасаби: ' + str(
-                new_value(15)) + '\nСпособ оплаты: ' + str(new_value(16)) + '\nИтоговая цена: ' + str(
-                new_value(17)) + "\n")
+        new_value(7)) + '\nВремя заказа: ' + str(new_value(9)) + '\nСостав заказа: ' + composition +
+               '\nПалочки: ' + str(new_value(14)) + '\nCоевый соус: ' + str(
+                new_value(15)) + '\nИмбирь: ' + str(new_value(16)) + '\nВасаби: ' + str(
+                new_value(17)) + '\nСпособ оплаты: ' + str(new_value(18)) + '\nИтоговая цена: ' + str(
+                new_value(19)) + "\n")
     message += food_comp
     await bot.send_message(chat_id, message)
 
@@ -145,15 +157,15 @@ async def handle_button_click(callback_query: types.CallbackQuery):
         await bot.send_message(chat_id, 'Заказ отклонен.')
     elif re.match(r'^preparing\d+$', callback_query.data):
         order_id = callback_query.data.split("preparing")[1]
-        sheet.update_cell(orders_row[int(order_id)], 4, 'Готовится')
+        sheet.update_cell(orders_row[int(order_id)], 10, 'готов')
         await bot.send_message(callback_query.message.chat.id, 'Статус заказа ' + order_id + ': Готовится')
     elif re.match(r'^delivering\d+$', callback_query.data):
         order_id = callback_query.data.split("delivering")[1]
-        sheet.update_cell(orders_row[int(order_id)], 4, 'В доставке')
+        sheet.update_cell(orders_row[int(order_id)], 10, 'в пути')
         await bot.send_message(callback_query.message.chat.id, 'Статус заказа ' + order_id + ': Едет к клиенту')
     elif re.match(r'^completed\d+$', callback_query.data):
         order_id = callback_query.data.split("completed")[1]
-        sheet.update_cell(orders_row[int(order_id)], 4, 'Готов')
+        sheet.update_cell(orders_row[int(order_id)], 10, 'выполнен')
         await bot.send_message(callback_query.message.chat.id, 'Статус заказа ' + order_id + ': Завершен')
         print(order_id)
         if order_id:
